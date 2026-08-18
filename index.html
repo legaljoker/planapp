@@ -1,32 +1,760 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#121212">
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wolf Pay Tracker</title>
-    <script src="javascript.js" defer></script>
-    <style>
-        body { font-family: sans-serif; background: #121212; color: white; padding: 20px; margin: 0; }
-        .card { background: #1e1e1e; padding: 15px; border-radius: 10px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .bill-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #333; }
-        input[type="number"] { padding: 5px; border-radius: 4px; border: none; }
-        #paycheck { width: 100%; box-sizing: border-box; height: 40px; font-size: 1.1em; background: #fff; color: #000; }
-        input[type="number"]::-webkit-inner-spin-button { display: none; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>The Ledger — Bill Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F7F4EC;
+    --paper-raised: #FFFFFF;
+    --ink: #21301F;
+    --ink-soft: #5B6B57;
+    --line: #D8D2C2;
+    --line-strong: #B9B096;
+    --navy: #23433F;
+    --navy-deep: #16302C;
+    --teal: #2F7C6E;
+    --teal-soft: #DCEAE5;
+    --brick: #B3432B;
+    --brick-soft: #F3DCD4;
+    --gold: #C79A3A;
+    --gold-soft: #F3E8CB;
+    --shadow: 0 1px 2px rgba(33,48,31,0.06), 0 4px 14px rgba(33,48,31,0.06);
+    --radius: 10px;
+    --font-display: 'Fraunces', serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background: var(--paper);
+    background-image:
+      linear-gradient(var(--line) 1px, transparent 1px);
+    background-size: 100% 2.1em;
+    background-position: 0 7.6em;
+    color: var(--ink);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+    padding-bottom: 80px;
+  }
+  ::selection{ background: var(--gold-soft); }
+
+  header.top{
+    padding: 22px 20px 16px;
+    display:flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    border-bottom: 2px solid var(--navy);
+    background: var(--paper);
+    position: sticky;
+    top:0;
+    z-index: 40;
+  }
+  .brand{
+    display:flex;
+    align-items:baseline;
+    gap:10px;
+  }
+  .brand .mark{
+    font-family: var(--font-display);
+    font-weight:700;
+    font-size: 26px;
+    color: var(--navy-deep);
+    letter-spacing: 0.2px;
+  }
+  .brand .sub{
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+  }
+  .balance-pill{
+    display:flex;
+    align-items:center;
+    gap: 8px;
+    background: var(--paper-raised);
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
+    padding: 6px 14px 6px 8px;
+    box-shadow: var(--shadow);
+  }
+  .balance-pill .label{
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-soft);
+    background: var(--gold-soft);
+    padding: 3px 8px;
+    border-radius: 999px;
+    font-weight:600;
+  }
+  .balance-pill input{
+    font-family: var(--font-mono);
+    font-weight:600;
+    font-size: 15px;
+    border:none;
+    background:transparent;
+    width: 100px;
+    color: var(--navy-deep);
+  }
+  .balance-pill input:focus{ outline: none; }
+
+  main{ max-width: 1400px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---- Ledger thread signature ---- */
+  .thread-wrap{
+    margin: 18px 16px 4px;
+    overflow-x: auto;
+  }
+  .thread-svg{ display:block; min-width: 640px; }
+
+  section.panel{
+    background: var(--paper-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    margin: 16px 0;
+    overflow: hidden;
+  }
+  .panel-head{
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--line);
+    flex-wrap: wrap;
+    gap:10px;
+  }
+  .panel-head h2{
+    font-family: var(--font-display);
+    font-size: 18px;
+    margin: 0;
+    color: var(--navy-deep);
+    font-weight: 600;
+  }
+  .panel-head .hint{ font-size:12px; color:var(--ink-soft); }
+
+  button{
+    font-family: var(--font-body);
+    cursor: pointer;
+  }
+  .btn{
+    border: 1px solid var(--line-strong);
+    background: var(--paper-raised);
+    color: var(--navy-deep);
+    padding: 7px 13px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    transition: background .12s ease, transform .05s ease;
+  }
+  .btn:hover{ background: var(--teal-soft); border-color: var(--teal); }
+  .btn:active{ transform: translateY(1px); }
+  .btn.primary{ background: var(--navy); color:#fff; border-color: var(--navy); }
+  .btn.primary:hover{ background: var(--navy-deep); }
+  .btn.ghost{ border-color: transparent; background: transparent; color: var(--ink-soft); padding: 6px 8px;}
+  .btn.ghost:hover{ background: var(--brick-soft); color: var(--brick); border-color: transparent;}
+  .btn.small{ padding:4px 9px; font-size: 12px; }
+
+  /* ---- table ---- */
+  .table-scroll{ overflow-x: auto; }
+  table.ledger{
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 13px;
+  }
+  table.ledger th, table.ledger td{
+    border-bottom: 1px solid var(--line);
+    border-right: 1px solid var(--line);
+    padding: 0;
+    white-space: nowrap;
+  }
+  table.ledger th:last-child, table.ledger td:last-child{ border-right:none; }
+
+  .col-name{ position: sticky; left:0; z-index: 5; background: var(--paper-raised); min-width: 168px; box-shadow: 2px 0 0 var(--line); }
+  .col-due{ min-width: 118px; }
+  .col-auto{ min-width: 54px; text-align:center; }
+  .col-planned{ min-width: 96px; }
+  .col-pay{ min-width: 108px; }
+  .col-del{ width: 34px; min-width:34px; }
+
+  thead .pay-header{
+    background: var(--navy);
+    color: #fff;
+  }
+  thead .pay-header th{
+    border-right: 1px solid rgba(255,255,255,0.14);
+    padding: 8px 6px;
+    font-weight: 600;
+    text-align:center;
+  }
+  thead .pay-header .col-name, thead .pay-header .col-due, thead .pay-header .col-auto, thead .pay-header .col-planned{
+    background: var(--navy);
+    color:#fff;
+  }
+  thead .pay-header input[type="date"]{
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    text-align:center;
+    width: 100%;
+  }
+  thead .pay-header input[type="date"]::-webkit-calendar-picker-indicator{ filter: invert(1); opacity:0.7; }
+
+  .row-current td{ background: var(--teal-soft); }
+  .row-actual td{ background: var(--brick-soft); }
+  .row-after td{ background: var(--gold-soft); }
+  tr.row-current .col-name, tr.row-actual .col-name, tr.row-after .col-name{
+    background: inherit;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: var(--ink);
+    padding: 7px 10px;
+  }
+  .row-current td, .row-actual td, .row-after td{ padding: 5px 6px; text-align:center; }
+  .row-actual .money{ font-weight:600; }
+  .row-after .money.negative{ color: var(--brick); font-weight:700; }
+
+  input.cell-money{
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: var(--font-mono);
+    text-align: center;
+    font-size: 13px;
+    padding: 4px 2px;
+    color: var(--ink);
+    border-radius: 4px;
+  }
+  input.cell-money:focus{ outline: 2px solid var(--teal); background: #fff; }
+
+  .money{ font-family: var(--font-mono); }
+
+  tbody tr.bill-row td{ padding: 5px 8px; }
+  tbody tr.bill-row:nth-child(even) td{ background: #FBFAF6; }
+  tbody tr.bill-row:nth-child(even) .col-name{ background: #FBFAF6; }
+  tbody tr.bill-row:hover td{ background: #F1EEE2; }
+  tbody tr.bill-row:hover .col-name{ background: #F1EEE2; }
+
+  input.field-text{
+    border:none; background:transparent; width:100%;
+    font-family: var(--font-body); font-size: 13px; color: var(--ink);
+    padding: 4px 2px; border-radius:4px; font-weight:500;
+  }
+  input.field-text:focus, input.field-due:focus{ outline: 2px solid var(--teal); background:#fff; }
+  input.field-due{
+    border:none; background:transparent; width:100%;
+    font-family: var(--font-mono); font-size: 12px; color: var(--ink-soft);
+    padding: 4px 2px; border-radius:4px;
+  }
+  input.field-planned{
+    border:none; background:transparent; width:100%;
+    font-family: var(--font-mono); font-size: 13px; color: var(--ink); font-weight:600;
+    padding: 4px 2px; text-align:right; border-radius:4px;
+  }
+  input.field-planned:focus{ outline: 2px solid var(--teal); background:#fff; }
+
+  input[type="checkbox"].auto-check{
+    width: 17px; height: 17px;
+    accent-color: var(--teal);
+    cursor:pointer;
+  }
+
+  .due-flag{
+    display:inline-block;
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--brick);
+    margin-right: 5px;
+    vertical-align: middle;
+  }
+
+  td.needs-attention{ background: var(--brick-soft) !important; }
+  td.needs-attention input.cell-money::placeholder{ color: var(--brick); font-weight:600; opacity:0.75; }
+
+  .pay-cell-inner{ display:flex; align-items:center; gap:4px; padding: 3px 4px; }
+  .pay-cell-inner input.cell-money{ flex:1; min-width: 0; }
+  .status-chip{
+    flex: 0 0 auto;
+    width: 15px; height: 15px;
+    border-radius: 4px;
+    border: 1.5px solid var(--line-strong);
+    background: #fff;
+    cursor: pointer;
+    transition: background .1s ease, border-color .1s ease, transform .05s ease;
+  }
+  .status-chip:hover{ transform: scale(1.08); }
+  .status-chip.status-pending{ background: var(--gold); border-color: #A87E23; }
+  .status-chip.status-paid{ background: var(--brick); border-color: #8A3220; }
+
+  td.status-pending{ background: #FBEFC5 !important; }
+  td.status-paid{ background: #F0C6BB !important; }
+  td.status-pending .cell-money, td.status-paid .cell-money{ font-weight:600; }
+
+  .del-btn{
+    border:none; background:transparent; color: var(--ink-soft);
+    font-size: 15px; width:100%; padding:4px;
+  }
+  .del-btn:hover{ color: var(--brick); }
+
+  .add-row-cell{ padding: 10px 16px !important; }
+
+  .footer-actions{
+    display:flex; gap:10px; padding: 12px 16px; flex-wrap:wrap;
+    border-top: 1px solid var(--line);
+  }
+
+  .empty-note{
+    padding: 30px 16px;
+    text-align:center;
+    color: var(--ink-soft);
+    font-size: 13.5px;
+  }
+
+  .legend{
+    display:flex; gap: 16px; flex-wrap:wrap; padding: 4px 16px 14px;
+    font-size: 11.5px; color: var(--ink-soft);
+  }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .legend i{ width:10px; height:10px; border-radius:3px; display:inline-block; }
+
+  .app-hint{
+    max-width: 1400px; margin: 4px auto 0; padding: 0 20px 10px;
+    font-size: 12px; color: var(--ink-soft);
+  }
+
+  @media (max-width: 640px){
+    header.top{ padding: 16px 14px 12px; }
+    .brand .mark{ font-size: 21px; }
+    .panel-head h2{ font-size:16px; }
+  }
+</style>
 </head>
 <body>
-    <h2 style="margin-bottom: 10px;">Wolf Pay Tracker</h2>
-    
-    <div class="card">
-        <label style="font-size: 0.8em; color: #aaa;">PAYCHECK AMOUNT ($)</label>
-        <input type="number" id="paycheck" value="2000" oninput="calculate()">
-        <h3 id="remaining" style="margin: 15px 0 0 0;">Safe to Spend: $0.00</h3>
-        <div style="font-size: 0.7em; color: #ff9800; margin-top: 5px;">*Includes -$115.75 for Spring Taxes</div>
-    </div>
 
-    <div id="billList">
-        </div>
+<header class="top">
+  <div class="brand">
+    <span class="mark">The Ledger</span>
+    <span class="sub">Biweekly Bill Tracker</span>
+  </div>
+  <div class="balance-pill">
+    <span class="label">Starting Balance</span>
+    <input type="text" id="startingBalance" inputmode="decimal" value="0.00">
+  </div>
+</header>
+
+<main>
+  <div class="thread-wrap">
+    <svg class="thread-svg" id="threadSvg" height="64"></svg>
+  </div>
+
+  <section class="panel" id="ledgerPanel">
+    <div class="panel-head">
+      <h2>Pay Period Ledger</h2>
+      <span class="hint">Tap any cell to edit. Scroll sideways for more paychecks →</span>
+    </div>
+    <div class="table-scroll">
+      <table class="ledger" id="ledgerTable">
+        <thead></thead>
+        <tbody id="billsBody"></tbody>
+      </table>
+    </div>
+    <div class="footer-actions">
+      <button class="btn primary" id="addBillBtn">+ Add bill</button>
+      <button class="btn" id="addPaycheckBtn">+ Add paycheck</button>
+      <button class="btn" id="sortBtn">Sort by due date</button>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--teal-soft); border:1px solid var(--teal)"></i> Current balance (you enter this on payday)</span>
+      <span><i style="background:var(--brick-soft); border:1px solid var(--brick)"></i> Total cost of bills that period</span>
+      <span><i style="background:var(--gold-soft); border:1px solid var(--gold)"></i> What's left after bills (Current Bal − Bills Cost)</span>
+      <span><span class="due-flag" style="margin-right:0"></span> Due in this period, not yet paid</span>
+      <span><i style="background:var(--gold); border:1px solid #A87E23"></i> Tap the square once — payment sent, pending</span>
+      <span><i style="background:var(--brick); border:1px solid #8A3220"></i> Tap again — cleared the bank</span>
+    </div>
+  </section>
+
+  <p class="app-hint">This runs entirely on your device / Claude account — nothing is sent anywhere else. On Android, open this page in Chrome, tap the menu (⋮), and choose <b>"Add to Home screen"</b> to use it like an app.</p>
+</main>
+
+<script>
+(function(){
+  const STORAGE_KEY_BILLS = 'ledger:bills';
+  const STORAGE_KEY_PAYCHECKS = 'ledger:paychecks';
+  const STORAGE_KEY_PAYMENTS = 'ledger:payments';
+  const STORAGE_KEY_START = 'ledger:startingBalance';
+
+  let bills = [];
+  let paychecks = []; // {id, date, currentBal}
+  let payments = {};  // payments[billId][paycheckId] = amount (string)
+  let startingBalance = 0;
+  let storageOK = true;
+
+  const uid = () => Math.random().toString(36).slice(2,10);
+
+  function fmtMoney(n){
+    if (n === null || n === undefined || isNaN(n)) return '';
+    const neg = n < 0;
+    const val = Math.abs(n).toFixed(2);
+    return (neg ? '-$' : '$') + val;
+  }
+  function parseMoney(str){
+    if (str === null || str === undefined) return 0;
+    const n = parseFloat(String(str).replace(/[^0-9.\-]/g,''));
+    return isNaN(n) ? 0 : n;
+  }
+
+  async function saveAll(){
+    try{
+      await window.storage.set(STORAGE_KEY_BILLS, JSON.stringify(bills), false);
+      await window.storage.set(STORAGE_KEY_PAYCHECKS, JSON.stringify(paychecks), false);
+      await window.storage.set(STORAGE_KEY_PAYMENTS, JSON.stringify(payments), false);
+      await window.storage.set(STORAGE_KEY_START, JSON.stringify(startingBalance), false);
+    }catch(e){
+      storageOK = false;
+      console.warn('Storage save failed, running in-memory only', e);
+    }
+  }
+
+  function seedData(){
+    startingBalance = 2822.05;
+    const payDates = ['2026-05-07','2026-05-21','2026-06-04','2026-06-18','2026-07-02','2026-07-16','2026-07-30','2026-08-13','2026-08-27'];
+    const currentBals = [1160.71,1156.56,1180.57,1149.69,1306.15,1151.24,1121.66,1000.00,1000.00];
+    paychecks = payDates.map((d,i)=>({ id: uid(), date: d, currentBal: currentBals[i] }));
+
+    const seedBills = [
+      ['Xfinity Phone','2026-01-24',false,''],
+      ['Xfinity Internet','2022-04-01',true,105.00],
+      ['Direct Auto','2025-05-23',true,46.49],
+      ['Roof','2026-05-22',false,140.00],
+      ['IM ELE','2021-07-15',false,530.00],
+      ['Water Bill','2021-07-15',false,180.00],
+      ['Water Tax','2021-07-15',false,5.00],
+      ['Renters Insurance','2022-09-15',false,17.76],
+      ['Hulu','2024-03-17',false,12.99],
+      ['T-Mobile','2021-11-21',true,187.17],
+      ['Amazon','2022-08-28',true,14.99],
+      ['Rent-A-Center','',false,6.42],
+      ['House','2022-06-30',false,575.00],
+      ['House Taxes','2026-05-01',false,465.00],
+      ['Crunchyroll','2025-12-05',false,22.99],
+      ['Ally Card / Now Ollo','2025-05-12',false,175.00],
+      ['Avant Card','2025-05-13',false,70.00],
+      ['CapitalOne Card','2025-05-17',false,130.00],
+      ['MissionLane Card','2025-05-17',false,''],
+      ['OnePay Card','2025-12-07',false,30.00],
+      ['Google','2026-04-06',false,19.99],
+      ['Affirm Loans','',false,''],
+      ['OnePay Loan','2026-05-07',false,51.99],
+      ['Spring Taxes','2026-05-02',false,36.26],
+      ['Fall Taxes','',false,445.00],
+    ];
+    bills = seedBills.map(([name,due,auto,planned])=>({
+      id: uid(), name, due, auto, planned: planned===''? '': Number(planned)
+    }));
+    payments = {};
+  }
+
+  async function loadAll(){
+    try{
+      const b = await window.storage.get(STORAGE_KEY_BILLS, false);
+      const p = await window.storage.get(STORAGE_KEY_PAYCHECKS, false);
+      const pay = await window.storage.get(STORAGE_KEY_PAYMENTS, false);
+      const sb = await window.storage.get(STORAGE_KEY_START, false);
+      bills = b ? JSON.parse(b.value) : null;
+      paychecks = p ? JSON.parse(p.value) : null;
+      payments = pay ? JSON.parse(pay.value) : {};
+      startingBalance = sb ? JSON.parse(sb.value) : null;
+    }catch(e){
+      bills = null; paychecks = null; payments = {}; startingBalance = null;
+    }
+    if (!bills || !paychecks || startingBalance === null){
+      seedData();
+      await saveAll();
+    }
+  }
+
+  function getPayment(billId, pcId){
+    const v = payments[billId] && payments[billId][pcId];
+    if (v === undefined || v === null) return { amount:'', status:'' };
+    if (typeof v === 'object') return { amount: v.amount ?? '', status: v.status ?? '' };
+    return { amount: v, status:'' }; // migrate old plain-string entries
+  }
+  function setPayment(billId, pcId, patch){
+    if (!payments[billId]) payments[billId] = {};
+    const cur = getPayment(billId, pcId);
+    payments[billId][pcId] = Object.assign({}, cur, patch);
+  }
+  function cycleStatus(status){
+    if (status === '') return 'pending';
+    if (status === 'pending') return 'paid';
+    return '';
+  }
+
+  function addDays(dateStr, days){
+    const d = dateStr ? new Date(dateStr+'T00:00:00') : new Date();
+    d.setDate(d.getDate()+days);
+    return d.toISOString().slice(0,10);
+  }
+
+  function periodEnd(index){
+    if (index < paychecks.length-1) return paychecks[index+1].date;
+    return addDays(paychecks[index].date, 14);
+  }
+
+  function dueFallsInPeriod(dueStr, index){
+    if (!dueStr) return false;
+    const due = new Date(dueStr+'T00:00:00');
+    if (isNaN(due.getTime())) return false;
+    const start = new Date(paychecks[index].date+'T00:00:00');
+    const end = new Date(periodEnd(index)+'T00:00:00');
+    return due >= start && due < end;
+  }
+
+  function fmtDateHeader(dateStr){
+    if(!dateStr) return '';
+    const d = new Date(dateStr+'T00:00:00');
+    if(isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('en-US',{month:'short', day:'numeric'});
+  }
+
+  function computeColumnActual(pcId){
+    let sum = 0;
+    bills.forEach(bill=>{
+      const amt = getPayment(bill.id, pcId).amount;
+      if (amt !== undefined && amt !== '' && amt !== null) sum += parseMoney(amt);
+    });
+    return sum;
+  }
+
+  function render(){
+    renderTable();
+    renderThread();
+  }
+
+  function renderTable(){
+    const thead = document.querySelector('#ledgerTable thead');
+    const tbody = document.getElementById('billsBody');
+    document.getElementById('startingBalance').value = Number(startingBalance).toFixed(2);
+
+    // header row
+    let headHtml = '<tr class="pay-header">';
+    headHtml += '<th class="col-name">Bill</th><th class="col-due">Due Date</th><th class="col-auto">Auto</th><th class="col-planned">Planned</th>';
+    paychecks.forEach((pc)=>{
+      headHtml += `<th class="col-pay"><input type="date" data-pcid="${pc.id}" class="pc-date" value="${pc.date}"></th>`;
+    });
+    headHtml += '<th class="col-del"></th></tr>';
+
+    // Current Bal row
+    let curHtml = '<tr class="row-current"><td class="col-name">Current&nbsp;Bal</td><td colspan="3"></td>';
+    paychecks.forEach(pc=>{
+      curHtml += `<td><input class="cell-money" data-pcid="${pc.id}" data-field="currentBal" inputmode="decimal" value="${Number(pc.currentBal).toFixed(2)}"></td>`;
+    });
+    curHtml += '<td></td></tr>';
+
+    // Actual row (computed)
+    let actHtml = '<tr class="row-actual"><td class="col-name">Bills&nbsp;Cost</td><td colspan="3"></td>';
+    paychecks.forEach(pc=>{
+      const a = computeColumnActual(pc.id);
+      actHtml += `<td class="money">${fmtMoney(a)}</td>`;
+    });
+    actHtml += '<td></td></tr>';
+
+    // Bal after row (computed)
+    let afterHtml = '<tr class="row-after"><td class="col-name">Bal&nbsp;After</td><td colspan="3"></td>';
+    paychecks.forEach(pc=>{
+      const a = computeColumnActual(pc.id);
+      const after = Number(pc.currentBal) - a;
+      const cls = after < 0 ? 'money negative' : 'money';
+      afterHtml += `<td class="${cls}">${fmtMoney(after)}</td>`;
+    });
+    afterHtml += '<td></td></tr>';
+
+    thead.innerHTML = headHtml + curHtml + actHtml + afterHtml;
+
+    // bill rows
+    if (bills.length === 0){
+      tbody.innerHTML = `<tr><td colspan="${4+paychecks.length+1}" class="empty-note">No bills yet. Tap "+ Add bill" to start your ledger.</td></tr>`;
+    } else {
+      tbody.innerHTML = bills.map(bill=>{
+        let row = `<tr class="bill-row" data-billid="${bill.id}">`;
+        row += `<td class="col-name"><input class="field-text" data-billid="${bill.id}" data-field="name" value="${escapeHtml(bill.name)}" placeholder="Bill name"></td>`;
+        row += `<td class="col-due"><input class="field-due" type="text" data-billid="${bill.id}" data-field="due" value="${escapeHtml(bill.due)}" placeholder="e.g. 2026-05-07"></td>`;
+        row += `<td class="col-auto"><input type="checkbox" class="auto-check" data-billid="${bill.id}" data-field="auto" ${bill.auto?'checked':''}></td>`;
+        row += `<td class="col-planned"><input class="field-planned" data-billid="${bill.id}" data-field="planned" inputmode="decimal" value="${bill.planned===''?'':Number(bill.planned).toFixed(2)}" placeholder="0.00"></td>`;
+        paychecks.forEach((pc,idx)=>{
+          const p = getPayment(bill.id, pc.id);
+          const inPeriod = dueFallsInPeriod(bill.due, idx);
+          const flagged = inPeriod && p.status==='' && (p.amount==='' || p.amount===null || p.amount===undefined);
+          const statusCls = p.status ? ('status-'+p.status) : '';
+          const tdCls = [flagged?'needs-attention':'', statusCls].filter(Boolean).join(' ');
+          row += `<td class="${tdCls}">`
+               + `<div class="pay-cell-inner">`
+               + `<span class="status-chip ${statusCls}" data-billid="${bill.id}" data-pcid="${pc.id}" title="Tap to mark pending / paid"></span>`
+               + `${flagged?'<span class="due-flag"></span>':''}`
+               + `<input class="cell-money" data-billid="${bill.id}" data-pcid="${pc.id}" data-field="payment" inputmode="decimal" value="${p.amount}" placeholder="${bill.planned!==''&&bill.planned!==undefined?Number(bill.planned).toFixed(2):'—'}">`
+               + `</div></td>`;
+        });
+        row += `<td class="col-del"><button class="del-btn" data-billid="${bill.id}" title="Delete bill">✕</button></td>`;
+        row += '</tr>';
+        return row;
+      }).join('');
+    }
+
+    attachHandlers();
+  }
+
+  function escapeHtml(s){
+    return String(s===undefined||s===null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function renderThread(){
+    const svg = document.getElementById('threadSvg');
+    const n = paychecks.length;
+    if (n===0){ svg.innerHTML=''; return; }
+    const w = Math.max(640, n*110);
+    svg.setAttribute('width', w);
+    svg.setAttribute('viewBox', `0 0 ${w} 64`);
+    const pad = 50;
+    const usable = w - pad*2;
+    const step = n>1 ? usable/(n-1) : 0;
+    const balances = paychecks.map(pc => Number(pc.currentBal) - computeColumnActual(pc.id));
+    const maxAbs = Math.max(50, ...balances.map(b=>Math.abs(b)));
+    const midY = 32;
+    const amp = 22;
+    const pts = balances.map((b,i)=>{
+      const x = pad + i*step;
+      const y = midY - (b/maxAbs)*amp;
+      return [x,y,b];
+    });
+    let path = `M ${pts[0][0]} ${pts[0][1]}`;
+    for(let i=1;i<pts.length;i++){
+      const [px,py] = pts[i-1];
+      const [x,y] = pts[i];
+      const mx = (px+x)/2;
+      path += ` C ${mx} ${py}, ${mx} ${y}, ${x} ${y}`;
+    }
+    let dots = pts.map(([x,y,b])=>{
+      const color = b < 0 ? '#B3432B' : (b < 100 ? '#C79A3A' : '#2F7C6E');
+      return `<circle cx="${x}" cy="${y}" r="4.5" fill="${color}" stroke="#fff" stroke-width="1.5"/>`;
+    }).join('');
+    svg.innerHTML = `
+      <line x1="0" y1="${midY}" x2="${w}" y2="${midY}" stroke="#D8D2C2" stroke-dasharray="2,4"/>
+      <path d="${path}" fill="none" stroke="#23433F" stroke-width="2"/>
+      ${dots}
+    `;
+  }
+
+  function attachHandlers(){
+    document.querySelectorAll('.pc-date').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const pc = paychecks.find(p=>p.id===e.target.dataset.pcid);
+        if(pc){ pc.date = e.target.value; saveAll(); render(); }
+      });
+    });
+    document.querySelectorAll('input[data-field="currentBal"]').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const pc = paychecks.find(p=>p.id===e.target.dataset.pcid);
+        if(pc){ pc.currentBal = parseMoney(e.target.value); saveAll(); render(); }
+      });
+    });
+    document.querySelectorAll('input[data-field="name"]').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const bill = bills.find(b=>b.id===e.target.dataset.billid);
+        if(bill){ bill.name = e.target.value; saveAll(); }
+      });
+    });
+    document.querySelectorAll('input[data-field="due"]').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const bill = bills.find(b=>b.id===e.target.dataset.billid);
+        if(bill){ bill.due = e.target.value; saveAll(); render(); }
+      });
+    });
+    document.querySelectorAll('input[data-field="auto"]').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const bill = bills.find(b=>b.id===e.target.dataset.billid);
+        if(bill){ bill.auto = e.target.checked; saveAll(); }
+      });
+    });
+    document.querySelectorAll('input[data-field="planned"]').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const bill = bills.find(b=>b.id===e.target.dataset.billid);
+        if(bill){ bill.planned = e.target.value===''? '' : parseMoney(e.target.value); saveAll(); render(); }
+      });
+    });
+    document.querySelectorAll('input[data-field="payment"]').forEach(el=>{
+      el.addEventListener('change', e=>{
+        const billId = e.target.dataset.billid;
+        const pcId = e.target.dataset.pcid;
+        setPayment(billId, pcId, { amount: e.target.value });
+        saveAll(); render();
+      });
+    });
+    document.querySelectorAll('.status-chip').forEach(el=>{
+      el.addEventListener('click', e=>{
+        const billId = e.target.dataset.billid;
+        const pcId = e.target.dataset.pcid;
+        const cur = getPayment(billId, pcId);
+        setPayment(billId, pcId, { status: cycleStatus(cur.status) });
+        saveAll(); render();
+      });
+    });
+    document.querySelectorAll('.del-btn').forEach(el=>{
+      el.addEventListener('click', e=>{
+        const billId = e.target.dataset.billid;
+        bills = bills.filter(b=>b.id!==billId);
+        delete payments[billId];
+        saveAll(); render();
+      });
+    });
+  }
+
+  document.getElementById('startingBalance').addEventListener('change', e=>{
+    startingBalance = parseMoney(e.target.value);
+    saveAll(); render();
+  });
+
+  document.getElementById('addBillBtn').addEventListener('click', ()=>{
+    bills.push({ id: uid(), name:'', due:'', auto:false, planned:'' });
+    saveAll(); render();
+    const rows = document.querySelectorAll('.field-text');
+    if (rows.length) rows[rows.length-1].focus();
+  });
+
+  document.getElementById('addPaycheckBtn').addEventListener('click', ()=>{
+    const last = paychecks[paychecks.length-1];
+    const nextDate = last ? addDays(last.date, 14) : new Date().toISOString().slice(0,10);
+    const lastBal = last ? (Number(last.currentBal) - computeColumnActual(last.id)) : startingBalance;
+    paychecks.push({ id: uid(), date: nextDate, currentBal: Math.max(0,lastBal) });
+    saveAll(); render();
+  });
+
+  document.getElementById('sortBtn').addEventListener('click', ()=>{
+    bills.sort((a,b)=>{
+      if(!a.due) return 1;
+      if(!b.due) return -1;
+      return new Date(a.due) - new Date(b.due);
+    });
+    saveAll(); render();
+  });
+
+  loadAll().then(render);
+})();
+</script>
 </body>
 </html>
