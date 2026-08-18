@@ -213,6 +213,14 @@
   }
   thead .pay-header input[type="date"]::-webkit-calendar-picker-indicator{ filter: invert(1); opacity:0.7; }
 
+  .pc-head-inner{ display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .pc-del{
+    border:none; background: rgba(255,255,255,0.14); color:#fff;
+    font-size: 10px; padding: 1px 7px; border-radius: 999px;
+    letter-spacing: 0.4px; text-transform: uppercase; font-weight:600;
+  }
+  .pc-del:hover{ background: var(--brick); }
+
   .row-current td{ background: var(--teal-soft); }
   .row-actual td{ background: var(--brick-soft); }
   .row-after td{ background: var(--gold-soft); }
@@ -556,7 +564,7 @@
     let headHtml = '<tr class="pay-header">';
     headHtml += '<th class="col-name">Bill</th><th class="col-due">Due Date</th><th class="col-auto">Auto</th><th class="col-planned">Planned</th>';
     paychecks.forEach((pc)=>{
-      headHtml += `<th class="col-pay"><input type="date" data-pcid="${pc.id}" class="pc-date" value="${pc.date}"></th>`;
+      headHtml += `<th class="col-pay"><div class="pc-head-inner"><input type="date" data-pcid="${pc.id}" class="pc-date" value="${pc.date}"><button class="pc-del" data-pcid="${pc.id}" title="Remove this paycheck">Remove</button></div></th>`;
     });
     headHtml += '<th class="col-del"></th></tr>';
 
@@ -719,6 +727,20 @@
         const billId = e.target.dataset.billid;
         bills = bills.filter(b=>b.id!==billId);
         delete payments[billId];
+        saveAll(); render();
+      });
+    });
+    document.querySelectorAll('.pc-del').forEach(el=>{
+      el.addEventListener('click', e=>{
+        const pcId = e.target.dataset.pcid;
+        if (paychecks.length <= 1){
+          alert("You need at least one pay period.");
+          return;
+        }
+        paychecks = paychecks.filter(p=>p.id!==pcId);
+        Object.keys(payments).forEach(billId=>{
+          if (payments[billId] && payments[billId][pcId]!==undefined) delete payments[billId][pcId];
+        });
         saveAll(); render();
       });
     });
