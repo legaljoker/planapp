@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>The Ledger — Bill Tracker</title>
+<meta name="theme-color" content="#23433F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="The Ledger">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -407,11 +415,33 @@
   const STORAGE_KEY_PAYMENTS = 'ledger:payments';
   const STORAGE_KEY_START = 'ledger:startingBalance';
 
+  // Storage that works two places: inside a Claude artifact (window.storage)
+  // and as a standalone file / installed PWA on a phone (localStorage).
+  const hasClaudeStorage = (typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get === 'function');
+  const store = {
+    async get(key){
+      if (hasClaudeStorage){
+        try{
+          const r = await window.storage.get(key, false);
+          return r ? r.value : null;
+        }catch(e){ return null; }
+      }
+      try{ return localStorage.getItem(key); }catch(e){ return null; }
+    },
+    async set(key, value){
+      if (hasClaudeStorage){
+        try{ await window.storage.set(key, value, false); return true; }
+        catch(e){ /* fall through to localStorage backup */ }
+      }
+      try{ localStorage.setItem(key, value); return true; }
+      catch(e){ return false; }
+    }
+  };
+
   let bills = [];
   let paychecks = []; // {id, date, currentBal}
   let payments = {};  // payments[billId][paycheckId] = amount (string)
   let startingBalance = 0;
-  let storageOK = true;
 
   const uid = () => Math.random().toString(36).slice(2,10);
 
@@ -428,15 +458,10 @@
   }
 
   async function saveAll(){
-    try{
-      await window.storage.set(STORAGE_KEY_BILLS, JSON.stringify(bills), false);
-      await window.storage.set(STORAGE_KEY_PAYCHECKS, JSON.stringify(paychecks), false);
-      await window.storage.set(STORAGE_KEY_PAYMENTS, JSON.stringify(payments), false);
-      await window.storage.set(STORAGE_KEY_START, JSON.stringify(startingBalance), false);
-    }catch(e){
-      storageOK = false;
-      console.warn('Storage save failed, running in-memory only', e);
-    }
+    await store.set(STORAGE_KEY_BILLS, JSON.stringify(bills));
+    await store.set(STORAGE_KEY_PAYCHECKS, JSON.stringify(paychecks));
+    await store.set(STORAGE_KEY_PAYMENTS, JSON.stringify(payments));
+    await store.set(STORAGE_KEY_START, JSON.stringify(startingBalance));
   }
 
   function seedData(){
@@ -480,14 +505,14 @@
 
   async function loadAll(){
     try{
-      const b = await window.storage.get(STORAGE_KEY_BILLS, false);
-      const p = await window.storage.get(STORAGE_KEY_PAYCHECKS, false);
-      const pay = await window.storage.get(STORAGE_KEY_PAYMENTS, false);
-      const sb = await window.storage.get(STORAGE_KEY_START, false);
-      bills = b ? JSON.parse(b.value) : null;
-      paychecks = p ? JSON.parse(p.value) : null;
-      payments = pay ? JSON.parse(pay.value) : {};
-      startingBalance = sb ? JSON.parse(sb.value) : null;
+      const b = await store.get(STORAGE_KEY_BILLS);
+      const p = await store.get(STORAGE_KEY_PAYCHECKS);
+      const pay = await store.get(STORAGE_KEY_PAYMENTS);
+      const sb = await store.get(STORAGE_KEY_START);
+      bills = b ? JSON.parse(b) : null;
+      paychecks = p ? JSON.parse(p) : null;
+      payments = pay ? JSON.parse(pay) : {};
+      startingBalance = sb ? JSON.parse(sb) : null;
     }catch(e){
       bills = null; paychecks = null; payments = {}; startingBalance = null;
     }
@@ -776,6 +801,12 @@
   });
 
   loadAll().then(render);
+
+  if ('serviceWorker' in navigator){
+    window.addEventListener('load', ()=>{
+      navigator.serviceWorker.register('service-worker.js').catch(()=>{ /* not hosted, ignore */ });
+    });
+  }
 })();
 </script>
 </body>
